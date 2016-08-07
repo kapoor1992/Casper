@@ -19,3 +19,5 @@ Final Results:
 
 Final Note:
 Try more sensors to avoid blind spots!
+
+UPDATE: New functionality added with pseudorandom turns in CollisionAvoidance.ino, a flex sensor for collision detection, turn signals, and threshold management within libraries. Maze solving was not updated as to reflect the changes; feedforward control is quite boring!
