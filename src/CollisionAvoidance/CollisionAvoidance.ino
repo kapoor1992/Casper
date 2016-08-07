@@ -1,64 +1,88 @@
-#include <Car.h>
-#include <WallSensor.h>
+#include <Driver.h>
+#include <SonarSensor.h>
+#include <FlexSensor.h>
 #include <Buzzer.h>
+#include <Signals.h>
 
-Car car(75);
-WallSensor sensor(7, 8);
-Buzzer buzzer(6);
+Driver      driver(100);
+SonarSensor sonar(7, 8, 20);
+FlexSensor  flex(5, 715);
+Buzzer      buzzer(6);
+Signals     signals(4, 5);
 
-const int leftLED = 4;
-const int rightLED = 5;
+const int seedPin = 0;
+const int stall = 750;
 
-const int threshold = 30;
+int turn;
 
 void setup() {
-  pinMode(leftLED, OUTPUT);
-  pinMode(rightLED, OUTPUT);
-  
+  randomSeed(analogRead(seedPin));
   buzzer.countdown();
 }
 
 void loop() {
-  execute();
+  exec();
 }
 
-// Avoidance algorithm.
-// Check front, then left, then right, then out.
-void execute() {
-  // Signal left and turn if there is a wall.
-  if (sensor.getDistance() < threshold) {
+// Avoidance algorithm. Turns are pseudorandom to avoid walls.
+void exec() {
+  // If a physical collision is detected, backup and turn.
+  if (flex.isFlexed()) {
+    driver.stopMoving();
     buzzer.scream();
-    car.stopMoving();
-    delay(1000);
-    digitalWrite(leftLED, HIGH);
-    car.turnLeft();
-    car.stopMoving();
-    delay(1000);
-    // Spin around if there is still a wall.
-    if (sensor.getDistance() < threshold) {
-      buzzer.scream();
-      car.stopMoving();
-      delay(1000);
-      digitalWrite(leftLED, LOW);
-      car.turnAround();
-      car.stopMoving();
-      delay(1000);
-      // Signal right and turn if there is still a wall.
-      if (sensor.getDistance() < threshold) {
-        buzzer.scream();
-        car.stopMoving();
-        delay(1000);
-        digitalWrite(rightLED, HIGH);
-        car.turnRight();
-        car.stopMoving();
-        delay(1000);
-        digitalWrite(rightLED, LOW);
-      }
-    }
-    digitalWrite(leftLED, LOW);
-    digitalWrite(rightLED, LOW);
-  // Go forwards until a wall arrives.
+    signals.blinkBoth();
+    driver.goBackwards();
+    delay(stall);
+    driver.stopMoving();
+    delay(stall);
+    turn = 1 + (random(10000) % 3);
+    fixPos(turn);
+    driver.stopMoving();
+    delay(stall);
+    driver.stopMoving();
+  // If a wall is close, turn.
+  } else if (sonar.isWall()) {
+    driver.stopMoving();
+    buzzer.scream();
+    turn = 1 + (random(10000) % 3);
+    fixPos(turn);
+    driver.stopMoving();
+    delay(stall);
+  // Keep going forwards if no danger is detected.
   } else {
-    car.goForwards();
+    driver.goForwards();
   }
+}
+
+// Maps the random turn to the actual functions.
+void fixPos (int turn) {
+  switch (turn) {
+      case 1:
+      goLeft();
+      break;
+      case 2:
+      goRight();
+      break;
+      default:
+      goAround();
+      break;
+    }
+}
+
+// Signal left and turn left.
+void goLeft() {
+  signals.blinkLeft();
+  driver.turnLeft();
+}
+
+// Signal right and turn right.
+void goRight() {
+  signals.blinkRight();
+  driver.turnRight();
+}
+
+// Signal right and turn around (using a 180 degree right turn).
+void goAround() {
+  signals.blinkRight();
+  driver.turnAround();
 }
